@@ -6,30 +6,73 @@ import { EnquiryPopup } from "@/components/enquiry-popup"
 import { Calendar, Gauge, Fuel, Cog, Zap, Shield, Phone, Mail } from "lucide-react"
 import Link from "next/link"
 
+interface CarDetails {
+  id: string
+  make: string
+  model: string
+  year: number
+  mileage: number
+  price: number
+  fuel_type: string | null
+  transmission: string | null
+  body_type: string | null
+  engine_size: string | null
+  color: string | null
+  doors: number | null
+  description: string | null
+  features: string[] | null
+  images: string[] | null
+}
+
 export default function CarDetailsPage({ params }: { params: { id: string } }) {
-  const [car, setCar] = useState<any>(null)
+  const [car, setCar] = useState<CarDetails | null>(null)
   const [isTestDriveOpen, setIsTestDriveOpen] = useState(false)
   const [isEnquiryOpen, setIsEnquiryOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/cars")
-      .then((res) => res.json())
+    setIsLoading(true)
+    fetch(`/api/cars/${params.id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Car not found")
+        return res.json()
+      })
       .then((data) => {
-        const foundCar = data.find((c: any) => c.id === Number.parseInt(params.id))
-        setCar(foundCar || data[0])
+        setCar(data)
+        setIsLoading(false)
       })
       .catch((error) => {
         console.error("Error fetching car data:", error)
+        setIsLoading(false)
       })
   }, [params.id])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-primary text-xl">Loading vehicle details...</div>
+      </div>
+    )
+  }
 
   if (!car) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-primary text-xl">Loading...</div>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Vehicle Not Found</h1>
+          <p className="text-muted-foreground mb-6">Sorry, we couldn't find the vehicle you're looking for.</p>
+          <Link
+            href="/stock"
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-accent transition-colors"
+          >
+            View All Stock
+          </Link>
+        </div>
       </div>
     )
   }
+
+  const carImages = car.images || ["/luxury-car-sleek-design.png"]
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,7 +94,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
 
         {/* Image Carousel */}
         <div className="mb-12">
-          <ImageCarousel images={car.images} alt={`${car.make} ${car.model}`} />
+          <ImageCarousel images={carImages} alt={`${car.make} ${car.model}`} />
         </div>
 
         {/* Two Column Layout */}
@@ -81,70 +124,83 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
               <div className="bg-card border border-border rounded-lg p-4 text-center">
                 <Fuel className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground mb-1">Fuel Type</p>
-                <p className="font-bold text-foreground">{car.fuelType}</p>
+                <p className="font-bold text-foreground">{car.fuel_type || "Petrol"}</p>
               </div>
               <div className="bg-card border border-border rounded-lg p-4 text-center">
                 <Cog className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground mb-1">Transmission</p>
-                <p className="font-bold text-foreground">{car.transmission}</p>
+                <p className="font-bold text-foreground">{car.transmission || "Automatic"}</p>
               </div>
             </div>
 
             {/* Description */}
             <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-2xl font-bold text-foreground mb-4">Description</h2>
-              <p className="text-muted-foreground leading-relaxed">{car.description}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                {car.description ||
+                  `Experience luxury and performance with this stunning ${car.year} ${car.make} ${car.model}. This premium vehicle combines cutting-edge technology with exceptional comfort and style.`}
+              </p>
             </div>
 
             {/* Technical Specifications */}
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <Zap className="w-6 h-6 text-primary" />
-                Technical Specifications
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Engine</span>
-                  <span className="font-semibold text-foreground">{car.engine}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Power</span>
-                  <span className="font-semibold text-foreground">{car.power}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Transmission</span>
-                  <span className="font-semibold text-foreground">{car.transmission}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Color</span>
-                  <span className="font-semibold text-foreground">{car.color}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Doors</span>
-                  <span className="font-semibold text-foreground">{car.doors}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Seats</span>
-                  <span className="font-semibold text-foreground">{car.seats}</span>
+            {(car.engine_size || car.color || car.doors) && (
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                  <Zap className="w-6 h-6 text-primary" />
+                  Technical Specifications
+                </h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {car.engine_size && (
+                    <div className="flex justify-between py-3 border-b border-border">
+                      <span className="text-muted-foreground">Engine</span>
+                      <span className="font-semibold text-foreground">{car.engine_size}</span>
+                    </div>
+                  )}
+                  {car.transmission && (
+                    <div className="flex justify-between py-3 border-b border-border">
+                      <span className="text-muted-foreground">Transmission</span>
+                      <span className="font-semibold text-foreground">{car.transmission}</span>
+                    </div>
+                  )}
+                  {car.color && (
+                    <div className="flex justify-between py-3 border-b border-border">
+                      <span className="text-muted-foreground">Color</span>
+                      <span className="font-semibold text-foreground">{car.color}</span>
+                    </div>
+                  )}
+                  {car.doors && (
+                    <div className="flex justify-between py-3 border-b border-border">
+                      <span className="text-muted-foreground">Doors</span>
+                      <span className="font-semibold text-foreground">{car.doors}</span>
+                    </div>
+                  )}
+                  {car.body_type && (
+                    <div className="flex justify-between py-3 border-b border-border">
+                      <span className="text-muted-foreground">Body Type</span>
+                      <span className="font-semibold text-foreground">{car.body_type}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Features */}
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <Shield className="w-6 h-6 text-primary" />
-                Premium Features
-              </h2>
-              <div className="grid md:grid-cols-2 gap-3">
-                {car.features.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
-                    <span className="text-muted-foreground">{feature}</span>
-                  </div>
-                ))}
+            {car.features && car.features.length > 0 && (
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
+                  <Shield className="w-6 h-6 text-primary" />
+                  Premium Features
+                </h2>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {car.features.map((feature: string, index: number) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary rounded-full" />
+                      <span className="text-muted-foreground">{feature}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column - Price & Actions */}

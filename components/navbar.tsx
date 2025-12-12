@@ -21,6 +21,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/stock", label: "Stock" },
+    { href: "/reviews", label: "Reviews" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
   ]
@@ -35,13 +36,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative w-12 h-12 transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_15px_rgba(212,175,55,0.6)]">
-              <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-6L6top4rKOPgIGVZ1IlAWE6WHS1k9M.png"
-                alt="Platinum Motorz Logo"
-                fill
-                className="object-contain"
-                priority
-              />
+              <Image src="/images/image.png" alt="Platinum Motorz Logo" fill className="object-contain" priority />
             </div>
             <span className="text-xl font-bold text-primary tracking-wider transition-all duration-300 group-hover:text-accent">
               PLATINUM MOTORZ
