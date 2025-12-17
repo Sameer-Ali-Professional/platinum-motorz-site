@@ -19,6 +19,14 @@ export const metadata: Metadata = {
   authors: [{ name: "Platinum Motorz" }],
   creator: "Platinum Motorz",
   publisher: "Platinum Motorz",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", type: "image/png" },
+    ],
+  },
   formatDetection: {
     email: false,
     address: false,
@@ -31,6 +39,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_GB",
     siteName: "Platinum Motorz",
+    images: ["/images/image.png"],
   },
   robots: {
     index: true,
