@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Calendar, Gauge, Fuel } from "lucide-react"
 
 interface CarCardProps {
-  id: number
+  id: string | number
   make: string
   model: string
   year: number
