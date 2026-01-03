@@ -95,44 +95,89 @@ export class AutotraderScraper {
       // Wait for listings to load
       await page.waitForTimeout(3000)
 
-      // Try multiple selector strategies
-      let listingElements: any[] = []
+      // Handle pagination - scrape all pages
+      let hasNextPage = true
+      let pageNum = 1
 
-      // Strategy 1: Modern Autotrader selectors
-      try {
-        listingElements = await page.$$('li[data-testid="listing-card"]')
-        if (listingElements.length === 0) {
-          // Strategy 2: Alternative selectors
-          listingElements = await page.$$('[data-testid="search-listing"], [data-testid="advert-card"]')
-        }
-        if (listingElements.length === 0) {
-          // Strategy 3: Class-based selectors
-          listingElements = await page.$$(
-            '.search-listing, .at-listing-card, [class*="listing-card"], [class*="advert-card"]'
-          )
-        }
-        if (listingElements.length === 0) {
-          // Strategy 4: Generic listing containers
-          listingElements = await page.$$('article, [role="article"], .listing, [class*="listing"]')
-        }
-      } catch (error) {
-        console.warn("Error finding listing elements:", error)
-      }
+      while (hasNextPage) {
+        console.log(`Scraping page ${pageNum}...`)
 
-      console.log(`Found ${listingElements.length} listing elements`)
-
-      // Extract data from each listing
-      for (let i = 0; i < listingElements.length; i++) {
+        // Wait for listings to be visible
         try {
-          const listing = await this.extractListingData(page, listingElements[i], i)
-          if (listing) {
-            listings.push(listing)
+          await page.waitForSelector('li[data-testid="listing-card"]', { timeout: 10000 })
+        } catch (error) {
+          console.log("Waiting for listings to load...")
+          await page.waitForTimeout(2000)
+        }
+
+        // Try multiple selector strategies
+        let listingElements: any[] = []
+
+        // Strategy 1: Modern Autotrader selectors
+        try {
+          listingElements = await page.$$('li[data-testid="listing-card"]')
+          if (listingElements.length === 0) {
+            // Strategy 2: Alternative selectors
+            listingElements = await page.$$('[data-testid="search-listing"], [data-testid="advert-card"]')
+          }
+          if (listingElements.length === 0) {
+            // Strategy 3: Class-based selectors
+            listingElements = await page.$$(
+              '.search-listing, .at-listing-card, [class*="listing-card"], [class*="advert-card"]'
+            )
+          }
+          if (listingElements.length === 0) {
+            // Strategy 4: Generic listing containers
+            listingElements = await page.$$('article, [role="article"], .listing, [class*="listing"]')
           }
         } catch (error) {
-          console.error(`Error extracting listing ${i}:`, error)
-          continue
+          console.warn("Error finding listing elements:", error)
+        }
+
+        console.log(`Found ${listingElements.length} listing elements on page ${pageNum}`)
+
+        // Extract data from each listing on this page
+        for (let i = 0; i < listingElements.length; i++) {
+          try {
+            const listing = await this.extractListingData(page, listingElements[i], i)
+            if (listing) {
+              listings.push(listing)
+            }
+          } catch (error) {
+            console.error(`Error extracting listing ${i} on page ${pageNum}:`, error)
+            continue
+          }
+        }
+
+        // Check for next page button
+        try {
+          const nextButton = await page.$('a[data-testid="pagination-next-button"], a[aria-label*="Next"], a[aria-label*="next"]')
+          if (nextButton) {
+            const isDisabled = await nextButton.evaluate((el) => {
+              return el.getAttribute("aria-disabled") === "true" || el.classList.contains("disabled")
+            })
+
+            if (!isDisabled) {
+              console.log(`Navigating to page ${pageNum + 1}...`)
+              await Promise.all([
+                page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 30000 }),
+                nextButton.click(),
+              ])
+              await page.waitForTimeout(2000) // Wait for page to load
+              pageNum++
+            } else {
+              hasNextPage = false
+            }
+          } else {
+            hasNextPage = false
+          }
+        } catch (error) {
+          console.log("No next page button found or error navigating:", error)
+          hasNextPage = false
         }
       }
+
+      console.log(`Total listings scraped: ${listings.length}`)
 
       // If no listings found, try fallback approach
       if (listings.length === 0) {
