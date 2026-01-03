@@ -1,14 +1,6 @@
-import { chromium, Browser, Page } from "playwright"
-
-// Dynamic import for serverless Chromium (only loaded when needed)
-let chromiumPkg: any = null
-if (typeof window === "undefined") {
-  try {
-    chromiumPkg = require("@sparticuz/chromium")
-  } catch {
-    // Package not available, will use regular Chromium
-  }
-}
+import type { Browser, Page } from "puppeteer-core"
+import puppeteer from "puppeteer-core"
+import chromium from "@sparticuz/chromium"
 
 export interface AutotraderListing {
   autotrader_id: string
@@ -41,24 +33,29 @@ export class AutotraderScraper {
     try {
       // Check if we're in a serverless environment (Vercel)
       const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
-      
-      if (isServerless && chromiumPkg) {
+
+      if (isServerless) {
         // Use serverless-compatible Chromium
-        this.browser = await chromium.launch({
-          headless: true,
-          args: chromiumPkg.args,
-          executablePath: await chromiumPkg.executablePath(),
+        chromium.setGraphicsMode(false) // Disable GPU for serverless
+        this.browser = await puppeteer.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
+          ignoreHTTPSErrors: true,
         })
       } else {
         // Use regular Chromium for local/dev
-        this.browser = await chromium.launch({
+        // Try to use system Chrome/Chromium
+        this.browser = await puppeteer.launch({
           headless: true,
           args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          executablePath: process.env.CHROME_PATH || undefined,
         })
       }
     } catch (error) {
       throw new Error(
-        `Failed to launch browser: ${error instanceof Error ? error.message : "Unknown error"}. Playwright may not be installed or available in this environment.`
+        `Failed to launch browser: ${error instanceof Error ? error.message : "Unknown error"}. Puppeteer may not be installed or available in this environment.`
       )
     }
   }
@@ -73,17 +70,29 @@ export class AutotraderScraper {
 
     try {
       // Set viewport and user agent
-      await page.setViewportSize({ width: 1920, height: 1080 })
-      await page.setExtraHTTPHeaders({
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      })
+      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      )
 
       // Navigate to dealer page
       console.log(`Navigating to ${this.dealerUrl}...`)
-      await page.goto(this.dealerUrl, { waitUntil: "domcontentloaded", timeout: 30000 })
+      await page.goto(this.dealerUrl, { waitUntil: "domcontentloaded", timeout: 60000 })
 
-      // Wait a bit for dynamic content
+      // Accept cookies if present
+      try {
+        const acceptCookiesButton = await page.$('button#onetrust-accept-btn-handler')
+        if (acceptCookiesButton) {
+          console.log("Accepting cookies...")
+          await acceptCookiesButton.click()
+          await page.waitForTimeout(2000) // Wait for cookie banner to disappear
+        }
+      } catch (error) {
+        // Cookie banner might not be present
+        console.log("No cookie banner found or already accepted")
+      }
+
+      // Wait for listings to load
       await page.waitForTimeout(3000)
 
       // Try multiple selector strategies
@@ -91,15 +100,19 @@ export class AutotraderScraper {
 
       // Strategy 1: Modern Autotrader selectors
       try {
-        listingElements = await page.$$('[data-testid="search-listing"], [data-testid="advert-card"]')
+        listingElements = await page.$$('li[data-testid="listing-card"]')
         if (listingElements.length === 0) {
-          // Strategy 2: Class-based selectors
+          // Strategy 2: Alternative selectors
+          listingElements = await page.$$('[data-testid="search-listing"], [data-testid="advert-card"]')
+        }
+        if (listingElements.length === 0) {
+          // Strategy 3: Class-based selectors
           listingElements = await page.$$(
             '.search-listing, .at-listing-card, [class*="listing-card"], [class*="advert-card"]'
           )
         }
         if (listingElements.length === 0) {
-          // Strategy 3: Generic listing containers
+          // Strategy 4: Generic listing containers
           listingElements = await page.$$('article, [role="article"], .listing, [class*="listing"]')
         }
       } catch (error) {
@@ -128,7 +141,7 @@ export class AutotraderScraper {
         listings.push(...fallbackListings)
       }
 
-      // If still no listings, try extracting from individual car detail pages
+      // If still no listings, try extracting from individual car detail links
       if (listings.length === 0) {
         console.log("Trying to extract from car detail links...")
         const detailListings = await this.scrapeFromDetailLinks(page)
@@ -149,8 +162,9 @@ export class AutotraderScraper {
 
     try {
       // Find all links to car detail pages
-      const carLinks = await page.$$eval('a[href*="/car-details/"]', (links) => {
-        return Array.from(links)
+      const carLinks = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll('a[href*="/car-details/"]'))
+        return links
           .map((link) => ({
             href: link.getAttribute("href") || "",
             text: link.textContent?.trim() || "",
@@ -197,7 +211,7 @@ export class AutotraderScraper {
     try {
       // Extract basic info
       const title = await element.evaluate((el: Element) => {
-        const titleEl = el.querySelector('[data-testid="advert-title"], h2, h3, [class*="title"]')
+        const titleEl = el.querySelector('h3[data-testid="listing-card-title"]')
         return titleEl?.textContent?.trim() || ""
       })
 
@@ -213,7 +227,7 @@ export class AutotraderScraper {
 
       // Extract price
       const priceText = await element.evaluate((el: Element) => {
-        const priceEl = el.querySelector('[data-testid="price"], [class*="price"]')
+        const priceEl = el.querySelector('div[data-testid="listing-card-price"]')
         return priceEl?.textContent?.trim() || ""
       })
 
@@ -221,28 +235,47 @@ export class AutotraderScraper {
 
       // Extract mileage
       const mileageText = await element.evaluate((el: Element) => {
-        const mileageEl = el.querySelector('[data-testid="mileage"], [class*="mileage"]')
+        const mileageEl = el.querySelector('ul[data-testid="vehicle-features"] li:nth-child(1)')
         return mileageEl?.textContent?.trim() || ""
       })
 
       const mileage = this.parseMileage(mileageText)
 
-      // Extract autotrader ID from link or data attribute
+      // Extract fuel type and transmission
+      const fuelType = await element.evaluate((el: Element) => {
+        const fuelEl = el.querySelector('ul[data-testid="vehicle-features"] li:nth-child(2)')
+        return fuelEl?.textContent?.trim() || ""
+      })
+
+      const transmission = await element.evaluate((el: Element) => {
+        const transEl = el.querySelector('ul[data-testid="vehicle-features"] li:nth-child(3)')
+        return transEl?.textContent?.trim() || ""
+      })
+
+      // Extract autotrader ID from element ID or link
       const autotraderId = await element.evaluate((el: Element) => {
-        const link = el.querySelector("a[href*='/car-details']")
+        // Try to get from element ID
+        const id = el.getAttribute("id")
+        if (id && id.includes("listing-")) {
+          return id.replace("listing-", "")
+        }
+
+        // Try to get from link
+        const link = el.querySelector('a[data-testid="listing-card-link"]')
         if (link) {
           const href = link.getAttribute("href") || ""
-          const match = href.match(/\/car-details\/([^\/]+)/)
-          return match ? match[1] : null
+          const match = href.match(/\/car-details\/([^\/\?]+)/)
+          if (match) return match[1]
         }
-        return el.getAttribute("data-ad-id") || el.getAttribute("data-listing-id") || null
+
+        return null
       })
 
       if (!autotraderId) return null
 
       // Extract listing URL
       const listingUrl = await element.evaluate((el: Element) => {
-        const link = el.querySelector("a[href*='/car-details']")
+        const link = el.querySelector('a[data-testid="listing-card-link"]')
         if (link) {
           const href = link.getAttribute("href") || ""
           return href.startsWith("http") ? href : `https://www.autotrader.co.uk${href}`
@@ -252,7 +285,7 @@ export class AutotraderScraper {
 
       // Extract images in DOM order (preserve order from page)
       const images = await element.evaluate((el: Element) => {
-        const imgElements = Array.from(el.querySelectorAll("img"))
+        const imgElements = Array.from(el.querySelectorAll('img[data-testid="listing-card-image"]'))
         const imageUrls: string[] = []
 
         imgElements.forEach((img) => {
@@ -281,16 +314,11 @@ export class AutotraderScraper {
         return imageUrls
       })
 
-      // Extract additional details
-      const details = await element.evaluate((el: Element) => {
-        const detailsEl = el.querySelector('[data-testid="specifications"], [class*="spec"], [class*="details"]')
-        const text = detailsEl?.textContent || ""
-        return text
+      // Extract description
+      const description = await element.evaluate((el: Element) => {
+        const descEl = el.querySelector('p[data-testid="listing-card-description"]')
+        return descEl?.textContent?.trim() || ""
       })
-
-      const fuelType = this.extractFuelType(details)
-      const transmission = this.extractTransmission(details)
-      const bodyType = this.extractBodyType(details)
 
       return {
         autotrader_id: autotraderId,
@@ -299,11 +327,11 @@ export class AutotraderScraper {
         year,
         price,
         mileage,
-        fuel_type: fuelType,
-        transmission,
-        body_type: bodyType,
+        fuel_type: fuelType || undefined,
+        transmission: transmission || undefined,
         images: images.length > 0 ? images : [],
         listing_url: listingUrl || `https://www.autotrader.co.uk/car-details/${autotraderId}`,
+        description: description || undefined,
       }
     } catch (error) {
       console.error("Error extracting listing data:", error)
@@ -317,7 +345,8 @@ export class AutotraderScraper {
 
     try {
       // Get all links to car details
-      const carLinks = await page.$$eval('a[href*="/car-details"]', (links) => {
+      const carLinks = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll('a[href*="/car-details"]'))
         return links.map((link) => ({
           href: link.getAttribute("href") || "",
           text: link.textContent?.trim() || "",
@@ -361,36 +390,6 @@ export class AutotraderScraper {
     return parseInt(cleaned) || 0
   }
 
-  private extractFuelType(text: string): string | undefined {
-    const fuelTypes = ["Petrol", "Diesel", "Hybrid", "Electric", "Plug-in Hybrid"]
-    for (const fuel of fuelTypes) {
-      if (text.toLowerCase().includes(fuel.toLowerCase())) {
-        return fuel
-      }
-    }
-    return undefined
-  }
-
-  private extractTransmission(text: string): string | undefined {
-    if (text.toLowerCase().includes("automatic") || text.toLowerCase().includes("auto")) {
-      return "Automatic"
-    }
-    if (text.toLowerCase().includes("manual")) {
-      return "Manual"
-    }
-    return undefined
-  }
-
-  private extractBodyType(text: string): string | undefined {
-    const bodyTypes = ["Saloon", "Estate", "Hatchback", "SUV", "Coupe", "Convertible", "MPV"]
-    for (const body of bodyTypes) {
-      if (text.toLowerCase().includes(body.toLowerCase())) {
-        return body
-      }
-    }
-    return undefined
-  }
-
   async close() {
     if (this.browser) {
       await this.browser.close()
@@ -398,4 +397,3 @@ export class AutotraderScraper {
     }
   }
 }
-

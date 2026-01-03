@@ -5,6 +5,24 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "**.supabase.in",
+      },
+      {
+        protocol: "https",
+        hostname: "autotrader.co.uk",
+      },
+      {
+        protocol: "https",
+        hostname: "**.autotrader.co.uk",
+      },
+    ],
   },
 }
 

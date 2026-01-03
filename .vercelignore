@@ -1,0 +1,3 @@
+# Ignore Playwright browsers in Vercel build
+node_modules/playwright/.local-browsers/
+
