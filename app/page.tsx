@@ -35,6 +35,18 @@ export default async function Home({
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "PLATINUM MOTORZ LTD",
+            alternateName: "Platinum Motorz",
+            url: "https://www.platinummotorz.co.uk",
+          }),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
             "@type": "Organization",
             name: "Platinum Motorz",
             url: "https://www.platinummotorz.co.uk",
