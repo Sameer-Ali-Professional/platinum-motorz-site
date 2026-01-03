@@ -94,19 +94,28 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
     }
   }, [formData.make])
 
-  // Fuel type options
+  // Fuel type options (with None option for clearing)
   const fuelTypeOptions = useMemo(() => {
-    return FUEL_TYPES.map((fuelType) => ({ value: fuelType, label: fuelType }))
+    return [
+      { value: "", label: "None" },
+      ...FUEL_TYPES.map((fuelType) => ({ value: fuelType, label: fuelType })),
+    ]
   }, [])
 
-  // Transmission options
+  // Transmission options (with None option for clearing)
   const transmissionOptions = useMemo(() => {
-    return TRANSMISSIONS.map((transmission) => ({ value: transmission, label: transmission }))
+    return [
+      { value: "", label: "None" },
+      ...TRANSMISSIONS.map((transmission) => ({ value: transmission, label: transmission })),
+    ]
   }, [])
 
-  // Body type options
+  // Body type options (with None option for clearing)
   const bodyTypeOptions = useMemo(() => {
-    return BODY_TYPES.map((bodyType) => ({ value: bodyType, label: bodyType }))
+    return [
+      { value: "", label: "None" },
+      ...BODY_TYPES.map((bodyType) => ({ value: bodyType, label: bodyType })),
+    ]
   }, [])
 
   useEffect(() => {
