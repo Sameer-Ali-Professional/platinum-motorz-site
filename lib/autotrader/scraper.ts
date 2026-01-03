@@ -70,6 +70,8 @@ export class AutotraderScraper {
           "--enable-automation",
           "--password-store=basic",
           "--use-mock-keychain",
+          "--disable-software-rasterizer",
+          "--disable-web-security",
         ]
         
         this.browser = await puppeteer.launch({
