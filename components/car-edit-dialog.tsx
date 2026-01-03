@@ -298,6 +298,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               searchPlaceholder="Search makes..."
               emptyMessage="No makes found."
               className="bg-black/40 border-gray-700 text-white hover:border-[#D4AF37]"
+              creatable={true}
             />
           </div>
 
@@ -311,6 +312,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               searchPlaceholder="Search models..."
               emptyMessage="No models found."
               className="bg-black/40 border-gray-700 text-white hover:border-[#D4AF37]"
+              creatable={true}
             />
           </div>
 
@@ -357,6 +359,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               searchPlaceholder="Search fuel types..."
               emptyMessage="No fuel types found."
               className="bg-black/40 border-gray-700 text-white hover:border-[#D4AF37]"
+              creatable={true}
             />
           </div>
 
@@ -370,6 +373,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               searchPlaceholder="Search transmissions..."
               emptyMessage="No transmissions found."
               className="bg-black/40 border-gray-700 text-white hover:border-[#D4AF37]"
+              creatable={true}
             />
           </div>
 
@@ -383,6 +387,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               searchPlaceholder="Search body types..."
               emptyMessage="No body types found."
               className="bg-black/40 border-gray-700 text-white hover:border-[#D4AF37]"
+              creatable={true}
             />
           </div>
 
