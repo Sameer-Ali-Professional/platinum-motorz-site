@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { Github } from "lucide-react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -44,6 +45,25 @@ export default function SignUpPage() {
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGitHubSignUp = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/admin`,
+        },
+      })
+      if (error) throw error
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
       setIsLoading(false)
     }
   }
@@ -111,13 +131,35 @@ export default function SignUpPage() {
                   {isLoading ? "Creating account..." : "Sign up"}
                 </Button>
               </div>
-              <div className="mt-4 text-center text-sm">
-                <span className="text-gray-400">Already have an account? </span>
-                <Link href="/auth/login" className="text-[#D4AF37] underline underline-offset-4 hover:text-[#C0A030]">
-                  Login
-                </Link>
-              </div>
             </form>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-[#D4AF37]/20" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-black/40 px-2 text-gray-400">Or continue with</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleGitHubSignUp}
+                disabled={isLoading}
+                className="w-full mt-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold border border-gray-700 transition-all duration-300"
+              >
+                <Github className="w-5 h-5 mr-2" />
+                {isLoading ? "Signing up..." : "Sign up with GitHub"}
+              </Button>
+            </div>
+
+            <div className="mt-4 text-center text-sm">
+              <span className="text-gray-400">Already have an account? </span>
+              <Link href="/auth/login" className="text-[#D4AF37] underline underline-offset-4 hover:text-[#C0A030]">
+                Login
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>

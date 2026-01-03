@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Link from "next/link"
+import { Github } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -35,6 +36,25 @@ export default function LoginPage() {
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGitHubLogin = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo: `${window.location.origin}/admin`,
+        },
+      })
+      if (error) throw error
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
       setIsLoading(false)
     }
   }
@@ -92,6 +112,27 @@ export default function LoginPage() {
                 </Button>
               </div>
             </form>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-[#D4AF37]/20" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-black/40 px-2 text-gray-400">Or continue with</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleGitHubLogin}
+                disabled={isLoading}
+                className="w-full mt-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold border border-gray-700 transition-all duration-300"
+              >
+                <Github className="w-5 h-5 mr-2" />
+                {isLoading ? "Signing in..." : "Sign in with GitHub"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
