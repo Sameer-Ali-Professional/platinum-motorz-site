@@ -1,5 +1,14 @@
 import { chromium, Browser, Page } from "playwright"
-import chromiumPkg from "@sparticuz/chromium"
+
+// Dynamic import for serverless Chromium (only loaded when needed)
+let chromiumPkg: any = null
+if (typeof window === "undefined") {
+  try {
+    chromiumPkg = require("@sparticuz/chromium")
+  } catch {
+    // Package not available, will use regular Chromium
+  }
+}
 
 export interface AutotraderListing {
   autotrader_id: string
@@ -33,7 +42,7 @@ export class AutotraderScraper {
       // Check if we're in a serverless environment (Vercel)
       const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
       
-      if (isServerless) {
+      if (isServerless && chromiumPkg) {
         // Use serverless-compatible Chromium
         this.browser = await chromium.launch({
           headless: true,
