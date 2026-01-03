@@ -1,23 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { AutotraderScraper } from "@/lib/autotrader/scraper"
+import { ImageUploader } from "@/lib/autotrader/image-uploader"
 
-interface AutotraderCar {
-  id: string
-  make: string
-  model: string
-  year: number
-  price: number
-  mileage: number
-  fuelType?: string
-  transmission?: string
-  bodyType?: string
-  engineSize?: string
-  color?: string
-  doors?: number
-  description?: string
-  features?: string[]
-  images?: string[]
-}
+const AUTOTRADER_DEALER_URL = "https://www.autotrader.co.uk/dealers/lancashire/oldham/platinum-motorz-10047725"
 
 export async function POST() {
   const supabase = await createClient()
@@ -31,70 +17,155 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const scraper = new AutotraderScraper(AUTOTRADER_DEALER_URL)
+  const imageUploader = new ImageUploader(supabase)
+
   try {
-    // For now, we'll simulate the sync process
-    // const autotraderData = await fetchFromAutotraderAPI()
+    // Initialize scraper
+    await scraper.initialize()
 
-    // Simulate API response for demonstration
-    const simulatedAutotraderData: AutotraderCar[] = [
-      {
-        id: "AT-2024-001",
-        make: "Mercedes-Benz",
-        model: "E-Class",
-        year: 2024,
-        price: 54999,
-        mileage: 2500,
-        fuelType: "Diesel",
-        transmission: "Automatic",
-        bodyType: "Saloon",
-        engineSize: "2.0L",
-        color: "Polar White",
-        doors: 4,
-        description: "Elegant and efficient Mercedes-Benz E-Class with full service history.",
-        features: ["Leather Seats", "Navigation", "Parking Sensors", "Cruise Control"],
-        images: ["/mercedes-e-class-white.jpg"],
-      },
-    ]
+    // Scrape all listings from Autotrader
+    console.log("Scraping Autotrader listings...")
+    const listings = await scraper.scrapeAllListings()
+    console.log(`Found ${listings.length} listings`)
 
-    // Upsert cars from Autotrader feed
-    const carsToUpsert = simulatedAutotraderData.map((car) => ({
-      autotrader_id: car.id,
-      make: car.make,
-      model: car.model,
-      year: car.year,
-      price: car.price,
-      mileage: car.mileage,
-      fuel_type: car.fuelType,
-      transmission: car.transmission,
-      body_type: car.bodyType,
-      engine_size: car.engineSize,
-      color: car.color,
-      doors: car.doors,
-      description: car.description,
-      features: car.features,
-      images: car.images,
-      is_available: true,
-    }))
+    if (listings.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "No listings found on Autotrader page",
+          count: 0,
+        },
+        { status: 404 }
+      )
+    }
 
-    const { data, error } = await supabase.from("cars").upsert(carsToUpsert, {
-      onConflict: "autotrader_id",
-      ignoreDuplicates: false,
-    })
+    // Process each listing
+    const results = {
+      created: 0,
+      updated: 0,
+      errors: [] as string[],
+    }
 
-    if (error) throw error
+    for (const listing of listings) {
+      try {
+        // Upload images to Supabase Storage (preserves order)
+        let imageUrls = listing.images
+
+        if (listing.images.length > 0) {
+          console.log(`Uploading ${listing.images.length} images for ${listing.make} ${listing.model}...`)
+          imageUrls = await imageUploader.uploadImages(listing.images, listing.autotrader_id)
+        }
+
+        // Prepare car data for upsert
+        const carData = {
+          autotrader_id: listing.autotrader_id,
+          make: listing.make,
+          model: listing.model,
+          year: listing.year,
+          price: listing.price,
+          mileage: listing.mileage,
+          fuel_type: listing.fuel_type || null,
+          transmission: listing.transmission || null,
+          body_type: listing.body_type || null,
+          engine_size: listing.engine_size || null,
+          color: listing.color || null,
+          doors: listing.doors || null,
+          description: listing.description || null,
+          features: listing.features || null,
+          images: imageUrls, // Array preserves DOM order
+          is_available: true,
+          sync_source: "autotrader",
+          last_synced_at: new Date().toISOString(),
+        }
+
+        // Check if car exists
+        const { data: existingCar } = await supabase
+          .from("cars")
+          .select("id")
+          .eq("autotrader_id", listing.autotrader_id)
+          .single()
+
+        // Upsert car
+        const { error: upsertError } = await supabase.from("cars").upsert(carData, {
+          onConflict: "autotrader_id",
+          ignoreDuplicates: false,
+        })
+
+        if (upsertError) {
+          throw upsertError
+        }
+
+        if (existingCar) {
+          results.updated++
+        } else {
+          results.created++
+        }
+
+        console.log(`✓ Processed: ${listing.make} ${listing.model} (${listing.autotrader_id})`)
+      } catch (error) {
+        const errorMsg = `Failed to process ${listing.make} ${listing.model}: ${error instanceof Error ? error.message : "Unknown error"}`
+        results.errors.push(errorMsg)
+        console.error(errorMsg)
+      }
+    }
+
+    // Close scraper
+    await scraper.close()
+
+    // Mark cars not found in this sync as unavailable (optional - comment out if not desired)
+    // const { data: allAutotraderCars } = await supabase
+    //   .from("cars")
+    //   .select("autotrader_id")
+    //   .eq("sync_source", "autotrader")
+    //   .eq("is_available", true)
+
+    // const syncedIds = listings.map((l) => l.autotrader_id)
+    // const missingIds = allAutotraderCars
+    //   ?.filter((c) => c.autotrader_id && !syncedIds.includes(c.autotrader_id))
+    //   .map((c) => c.autotrader_id)
+
+    // if (missingIds && missingIds.length > 0) {
+    //   await supabase
+    //     .from("cars")
+    //     .update({ is_available: false })
+    //     .in("autotrader_id", missingIds)
+    // }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully synced ${carsToUpsert.length} cars from Autotrader`,
-      count: carsToUpsert.length,
+      message: `Successfully synced ${listings.length} cars from Autotrader`,
+      created: results.created,
+      updated: results.updated,
+      total: listings.length,
+      errors: results.errors.length > 0 ? results.errors : undefined,
     })
   } catch (error) {
-    console.error("[v0] Autotrader sync error:", error)
+    try {
+      await scraper.close()
+    } catch {
+      // Ignore close errors
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    console.error("Autotrader sync error:", error)
+    
+    // Provide more specific error messages
+    let userMessage = "Failed to sync Autotrader feed"
+    if (errorMessage.includes("playwright") || errorMessage.includes("chromium")) {
+      userMessage = "Playwright browser not available. This feature requires a server environment with Playwright installed."
+    } else if (errorMessage.includes("timeout")) {
+      userMessage = "Request timed out. The Autotrader page may be slow to load."
+    } else if (errorMessage.includes("ENOENT") || errorMessage.includes("not found")) {
+      userMessage = "Browser dependencies not found. Please ensure Playwright is properly installed."
+    }
+    
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to sync Autotrader feed",
+        error: userMessage,
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
       },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
