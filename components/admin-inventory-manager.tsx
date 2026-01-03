@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, Trash2, ExternalLink } from "lucide-react"
+import { RefreshCw, Trash2, ExternalLink, Edit, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
+import { CarEditDialog } from "@/components/car-edit-dialog"
 import Image from "next/image"
 
 interface Car {
@@ -16,7 +17,12 @@ interface Car {
   mileage: number
   fuel_type: string | null
   transmission: string | null
+  body_type: string | null
+  engine_size: string | null
   color: string | null
+  doors: number | null
+  description: string | null
+  features: string[] | null
   images: string[] | null
   autotrader_id: string | null
   is_available: boolean
@@ -26,8 +32,8 @@ interface Car {
 export function AdminInventoryManager() {
   const [cars, setCars] = useState<Car[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [editingCar, setEditingCar] = useState<Car | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const fetchCars = async () => {
     setIsLoading(true)
@@ -44,28 +50,18 @@ export function AdminInventoryManager() {
     fetchCars()
   }, [])
 
-  const handleAutotraderSync = async () => {
-    setIsSyncing(true)
-    setSyncMessage(null)
+  const handleEdit = (car: Car) => {
+    setEditingCar(car)
+    setIsEditDialogOpen(true)
+  }
 
-    try {
-      const response = await fetch("/api/admin/autotrader/sync", {
-        method: "POST",
-      })
+  const handleAddNew = () => {
+    setEditingCar(null)
+    setIsEditDialogOpen(true)
+  }
 
-      const result = await response.json()
-
-      if (response.ok) {
-        setSyncMessage(`Success: ${result.message}`)
-        fetchCars()
-      } else {
-        setSyncMessage(`Error: ${result.error}`)
-      }
-    } catch (error) {
-      setSyncMessage("Error: Failed to sync with Autotrader")
-    } finally {
-      setIsSyncing(false)
-    }
+  const handleSaveComplete = () => {
+    fetchCars()
   }
 
   const handleToggleAvailability = async (id: string, currentStatus: boolean) => {
@@ -90,34 +86,12 @@ export function AdminInventoryManager() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-black/40 backdrop-blur-sm border-[#D4AF37]/20">
-        <CardHeader>
-          <CardTitle className="text-white">Autotrader Integration</CardTitle>
-          <CardDescription className="text-gray-400">Sync your inventory with Autotrader feed</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4">
-            <Button
-              onClick={handleAutotraderSync}
-              disabled={isSyncing}
-              className="bg-gradient-to-r from-[#D4AF37] to-[#C0A030] text-black font-semibold hover:shadow-lg hover:shadow-[#D4AF37]/50 transition-all duration-300"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
-              {isSyncing ? "Syncing..." : "Sync with Autotrader"}
-            </Button>
-            {syncMessage && (
-              <div
-                className={`p-4 rounded-lg ${syncMessage.startsWith("Success") ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
-              >
-                {syncMessage}
-              </div>
-            )}
-            <p className="text-sm text-gray-400">
-              Click to sync your Autotrader inventory feed. This will automatically update your car listings.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <CarEditDialog
+        car={editingCar}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSave={handleSaveComplete}
+      />
 
       <Card className="bg-black/40 backdrop-blur-sm border-[#D4AF37]/20">
         <CardHeader>
@@ -127,6 +101,14 @@ export function AdminInventoryManager() {
               <CardDescription className="text-gray-400">Manage your car listings</CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-[#D4AF37]/20 text-white hover:bg-[#D4AF37]/10 bg-transparent"
+                onClick={handleAddNew}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Car
+              </Button>
               <Button
                 variant="outline"
                 className="border-[#D4AF37]/20 text-white hover:bg-[#D4AF37]/10 bg-transparent"
@@ -199,10 +181,19 @@ export function AdminInventoryManager() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleToggleAvailability(car.id, car.is_available)}
-                          className={`flex-1 ${car.is_available ? "border-orange-500/20 text-orange-400 hover:bg-orange-500/10" : "border-green-500/20 text-green-400 hover:bg-green-500/10"}`}
+                          onClick={() => handleEdit(car)}
+                          className="flex-1 border-[#D4AF37]/20 text-[#D4AF37] hover:bg-[#D4AF37]/10"
                         >
-                          {car.is_available ? "Mark Sold" : "Mark Available"}
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleToggleAvailability(car.id, car.is_available)}
+                          className={`${car.is_available ? "border-orange-500/20 text-orange-400 hover:bg-orange-500/10" : "border-green-500/20 text-green-400 hover:bg-green-500/10"}`}
+                        >
+                          {car.is_available ? "Sold" : "Available"}
                         </Button>
                         <Button
                           size="sm"
