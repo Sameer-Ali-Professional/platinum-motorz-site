@@ -48,19 +48,6 @@ export async function POST(request: NextRequest) {
 
     // Build email content with car listing
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.platinummotorz.co.uk"
-    // Images from Supabase Storage are already full URLs, use directly
-    // If it's a relative path, prepend baseUrl, otherwise use as-is
-    let carImageUrl = fullCarDetails?.images?.[0] || `${baseUrl}/luxury-car-sleek-design.png`
-    
-    // Handle image URL - could be Supabase Storage URL or relative path
-    if (carImageUrl && !carImageUrl.startsWith('http')) {
-      // If it's a relative path, make it absolute
-      carImageUrl = `${baseUrl}${carImageUrl.startsWith('/') ? '' : '/'}${carImageUrl}`
-    }
-    
-    // Log for debugging
-    console.log("Car image URL:", carImageUrl)
-    console.log("Full car details images:", fullCarDetails?.images)
 
     let emailContent = `
       <!DOCTYPE html>
@@ -103,24 +90,11 @@ export async function POST(request: NextRequest) {
             background-color: #262626; 
             border: 1px solid rgba(212, 175, 55, 0.3); 
             border-radius: 8px; 
-            padding: 0; 
+            padding: 24px; 
             margin: 20px 0; 
-            overflow: hidden; 
-          }
-          .car-image-container { 
-            width: 100%; 
-            height: 300px; 
-            overflow: hidden; 
-            background-color: #1A1A1A; 
-          }
-          .car-image { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            display: block; 
           }
           .car-info { 
-            padding: 24px; 
+            padding: 0; 
           }
           .car-title { 
             font-size: 24px; 
@@ -247,15 +221,14 @@ export async function POST(request: NextRequest) {
       const carTransmission = fullCarDetails?.transmission || "N/A"
       const carBodyType = fullCarDetails?.body_type || "N/A"
       const carYearValue = fullCarDetails?.year || carDetails?.year || "N/A"
+      const carRegistration = fullCarDetails?.registration || null
 
       emailContent += `
             <div class="car-listing">
-              <div class="car-image-container">
-                <img src="${carImageUrl}" alt="${carMake} ${carModel}" class="car-image" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-              </div>
               <div class="car-info">
                 <div class="car-title" style="color: #F2F0E6 !important;">${carYearValue} ${carMake} ${carModel}</div>
                 ${carPrice ? `<div class="car-price" style="color: #D4AF37 !important;">${carPrice}</div>` : ""}
+                ${carRegistration ? `<div style="margin: 10px 0; padding: 10px; background-color: #1A1A1A; border-radius: 4px; border: 1px solid rgba(212, 175, 55, 0.3);"><span style="font-size: 12px; color: #999; text-transform: uppercase;">Registration:</span> <span style="font-size: 18px; font-weight: bold; color: #D4AF37 !important;">${carRegistration}</span></div>` : ""}
                 <div class="car-specs">
                   ${carMileage ? `<div class="spec-item"><div class="spec-label">Mileage</div><div class="spec-value" style="color: #F2F0E6 !important;">${carMileage}</div></div>` : ""}
                   ${carYearValue !== "N/A" ? `<div class="spec-item"><div class="spec-label">Year</div><div class="spec-value" style="color: #F2F0E6 !important;">${carYearValue}</div></div>` : ""}

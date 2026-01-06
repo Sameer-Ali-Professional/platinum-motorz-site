@@ -19,6 +19,12 @@ export async function GET(
     return NextResponse.json({ error: "Car not found" }, { status: 404 })
   }
 
+  // Remove registration from public response (admin-only field)
+  if (data) {
+    const { registration, ...publicData } = data
+    return NextResponse.json(publicData)
+  }
+
   return NextResponse.json(data)
 }
 

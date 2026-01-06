@@ -39,5 +39,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data || [])
+  // Remove registration from public response (admin-only field)
+  const publicData = (data || []).map(({ registration, ...car }) => car)
+
+  return NextResponse.json(publicData)
 }

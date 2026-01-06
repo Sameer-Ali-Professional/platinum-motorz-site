@@ -36,6 +36,7 @@ interface Car {
   features: string[] | null
   images: string[] | null
   autotrader_id: string | null
+  registration: string | null
   is_available: boolean
 }
 
@@ -63,6 +64,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
     features: null,
     images: null,
     autotrader_id: null,
+    registration: null,
     is_available: true,
   })
   const [images, setImages] = useState<string[]>([])
@@ -141,6 +143,7 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
         features: null,
         images: null,
         autotrader_id: null,
+        registration: null,
         is_available: true,
       })
       setImages([])
@@ -420,6 +423,17 @@ export function CarEditDialog({ car, open, onOpenChange, onSave }: CarEditDialog
               value={formData.doors || ""}
               onChange={(e) => setFormData({ ...formData, doors: parseInt(e.target.value) || null })}
               className="bg-black/40 border-gray-700 text-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="registration">Registration (Admin Only)</Label>
+            <Input
+              id="registration"
+              value={formData.registration || ""}
+              onChange={(e) => setFormData({ ...formData, registration: e.target.value || null })}
+              className="bg-black/40 border-gray-700 text-white"
+              placeholder="e.g., AB12 CDE"
             />
           </div>
 
