@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
     // Send email
     const { data, error } = await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: ["sameeraliprofessional1@gmail.com"],
+      to: ["platinummotorz1@outlook.com"],
       subject: emailSubject,
       html: emailContent,
       replyTo: email,
