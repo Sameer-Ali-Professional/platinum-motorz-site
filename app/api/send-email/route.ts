@@ -48,9 +48,8 @@ export async function POST(request: NextRequest) {
 
     // Build email content with car listing
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.platinummotorz.co.uk"
-    const carImageUrl = fullCarDetails?.images?.[0] 
-      ? `${baseUrl}${fullCarDetails.images[0].startsWith('/') ? '' : '/'}${fullCarDetails.images[0]}`
-      : `${baseUrl}/luxury-car-sleek-design.png`
+    // Images from Supabase Storage are already full URLs, use directly
+    const carImageUrl = fullCarDetails?.images?.[0] || `${baseUrl}/luxury-car-sleek-design.png`
 
     let emailContent = `
       <!DOCTYPE html>
@@ -59,24 +58,156 @@ export async function POST(request: NextRequest) {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #D4AF37 0%, #C0A030 100%); color: #000; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-          .car-listing { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-          .car-image { width: 100%; max-width: 500px; height: 300px; object-fit: cover; border-radius: 8px; margin-bottom: 20px; }
-          .car-title { font-size: 22px; font-weight: bold; color: #D4AF37; margin: 10px 0; }
-          .car-price { font-size: 28px; font-weight: bold; color: #000; margin: 15px 0; }
-          .car-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-          .detail-item { padding: 10px; background: #f5f5f5; border-radius: 4px; }
-          .detail-label { font-size: 12px; color: #666; text-transform: uppercase; }
-          .detail-value { font-size: 16px; font-weight: bold; color: #000; }
-          .customer-info { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .info-row { margin: 10px 0; }
-          .info-label { font-weight: bold; color: #666; }
-          .message-box { background: #fff; padding: 15px; border-left: 4px solid #D4AF37; margin: 20px 0; }
-          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #F2F0E6; 
+            background-color: #1A1A1A; 
+            margin: 0; 
+            padding: 0; 
+          }
+          .container { 
+            max-width: 650px; 
+            margin: 0 auto; 
+            background-color: #1A1A1A; 
+          }
+          .header { 
+            background: linear-gradient(135deg, #D4AF37 0%, #C0A030 100%); 
+            color: #000; 
+            padding: 30px; 
+            text-align: center; 
+          }
+          .header h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            font-weight: bold; 
+          }
+          .content { 
+            background-color: #1A1A1A; 
+            padding: 30px; 
+          }
+          .car-listing { 
+            background-color: #262626; 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 8px; 
+            padding: 0; 
+            margin: 20px 0; 
+            overflow: hidden; 
+          }
+          .car-image-container { 
+            width: 100%; 
+            height: 300px; 
+            overflow: hidden; 
+            background-color: #1A1A1A; 
+          }
+          .car-image { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            display: block; 
+          }
+          .car-info { 
+            padding: 24px; 
+          }
+          .car-title { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #F2F0E6; 
+            margin: 0 0 16px 0; 
+          }
+          .car-price { 
+            font-size: 32px; 
+            font-weight: bold; 
+            color: #D4AF37; 
+            margin: 16px 0; 
+          }
+          .car-specs { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            margin: 20px 0; 
+          }
+          .spec-item { 
+            padding: 12px; 
+            background-color: #1A1A1A; 
+            border: 1px solid rgba(212, 175, 55, 0.2); 
+            border-radius: 6px; 
+          }
+          .spec-label { 
+            font-size: 11px; 
+            color: #999; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            margin-bottom: 4px; 
+          }
+          .spec-value { 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #F2F0E6; 
+          }
+          .customer-info { 
+            background-color: #262626; 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            padding: 24px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+          }
+          .customer-info h2 { 
+            color: #D4AF37; 
+            font-size: 20px; 
+            margin: 0 0 16px 0; 
+          }
+          .info-row { 
+            margin: 12px 0; 
+            padding: 8px 0; 
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1); 
+          }
+          .info-label { 
+            font-weight: bold; 
+            color: #D4AF37; 
+            display: inline-block; 
+            min-width: 80px; 
+          }
+          .info-value { 
+            color: #F2F0E6; 
+          }
+          .message-box { 
+            background-color: #262626; 
+            border-left: 4px solid #D4AF37; 
+            padding: 16px; 
+            margin: 20px 0; 
+            border-radius: 4px; 
+          }
+          .message-box strong { 
+            color: #D4AF37; 
+          }
+          .message-box p { 
+            color: #F2F0E6; 
+            margin: 8px 0 0 0; 
+          }
+          .view-listing-btn { 
+            display: inline-block; 
+            background-color: #D4AF37; 
+            color: #000; 
+            padding: 12px 24px; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            margin-top: 16px; 
+            text-align: center; 
+          }
+          .footer { 
+            text-align: center; 
+            color: #999; 
+            font-size: 12px; 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid rgba(212, 175, 55, 0.2); 
+          }
+          .footer a { 
+            color: #D4AF37; 
+            text-decoration: none; 
+          }
         </style>
       </head>
       <body>
@@ -102,17 +233,21 @@ export async function POST(request: NextRequest) {
 
       emailContent += `
             <div class="car-listing">
-              <img src="${carImageUrl}" alt="${carMake} ${carModel}" class="car-image" />
-              <div class="car-title">${carYearValue} ${carMake} ${carModel}</div>
-              ${carPrice ? `<div class="car-price">${carPrice}</div>` : ""}
-              <div class="car-details">
-                ${carMileage ? `<div class="detail-item"><div class="detail-label">Mileage</div><div class="detail-value">${carMileage}</div></div>` : ""}
-                ${carYearValue !== "N/A" ? `<div class="detail-item"><div class="detail-label">Year</div><div class="detail-value">${carYearValue}</div></div>` : ""}
-                ${carFuel !== "N/A" ? `<div class="detail-item"><div class="detail-label">Fuel Type</div><div class="detail-value">${carFuel}</div></div>` : ""}
-                ${carTransmission !== "N/A" ? `<div class="detail-item"><div class="detail-label">Transmission</div><div class="detail-value">${carTransmission}</div></div>` : ""}
-                ${carBodyType !== "N/A" ? `<div class="detail-item"><div class="detail-label">Body Type</div><div class="detail-value">${carBodyType}</div></div>` : ""}
+              <div class="car-image-container">
+                <img src="${carImageUrl}" alt="${carMake} ${carModel}" class="car-image" />
               </div>
-              ${fullCarDetails?.id ? `<p style="text-align: center; margin-top: 20px;"><a href="${baseUrl}/stock/${fullCarDetails.id}" style="background: #D4AF37; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">View Full Listing</a></p>` : ""}
+              <div class="car-info">
+                <div class="car-title">${carYearValue} ${carMake} ${carModel}</div>
+                ${carPrice ? `<div class="car-price">${carPrice}</div>` : ""}
+                <div class="car-specs">
+                  ${carMileage ? `<div class="spec-item"><div class="spec-label">Mileage</div><div class="spec-value">${carMileage}</div></div>` : ""}
+                  ${carYearValue !== "N/A" ? `<div class="spec-item"><div class="spec-label">Year</div><div class="spec-value">${carYearValue}</div></div>` : ""}
+                  ${carFuel !== "N/A" ? `<div class="spec-item"><div class="spec-label">Fuel Type</div><div class="spec-value">${carFuel}</div></div>` : ""}
+                  ${carTransmission !== "N/A" ? `<div class="spec-item"><div class="spec-label">Transmission</div><div class="spec-value">${carTransmission}</div></div>` : ""}
+                  ${carBodyType !== "N/A" ? `<div class="spec-item"><div class="spec-label">Body Type</div><div class="spec-value">${carBodyType}</div></div>` : ""}
+                </div>
+                ${fullCarDetails?.id ? `<div style="text-align: center;"><a href="${baseUrl}/stock/${fullCarDetails.id}" class="view-listing-btn">View Full Listing</a></div>` : ""}
+              </div>
             </div>
       `
     }
@@ -120,10 +255,10 @@ export async function POST(request: NextRequest) {
     // Add customer information
     emailContent += `
             <div class="customer-info">
-              <h2 style="margin-top: 0; color: #D4AF37;">Customer Information</h2>
-              <div class="info-row"><span class="info-label">Name:</span> ${name}</div>
-              <div class="info-row"><span class="info-label">Email:</span> <a href="mailto:${email}">${email}</a></div>
-              <div class="info-row"><span class="info-label">Phone:</span> <a href="tel:${phone}">${phone}</a></div>
+              <h2>Customer Information</h2>
+              <div class="info-row"><span class="info-label">Name:</span> <span class="info-value">${name}</span></div>
+              <div class="info-row"><span class="info-label">Email:</span> <span class="info-value"><a href="mailto:${email}" style="color: #D4AF37; text-decoration: none;">${email}</a></span></div>
+              <div class="info-row"><span class="info-label">Phone:</span> <span class="info-value"><a href="tel:${phone}" style="color: #D4AF37; text-decoration: none;">${phone}</a></span></div>
             </div>
     `
 
