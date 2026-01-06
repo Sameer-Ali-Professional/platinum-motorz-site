@@ -49,7 +49,11 @@ export async function POST(request: NextRequest) {
     // Build email content with car listing
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.platinummotorz.co.uk"
     // Images from Supabase Storage are already full URLs, use directly
-    const carImageUrl = fullCarDetails?.images?.[0] || `${baseUrl}/luxury-car-sleek-design.png`
+    // If it's a relative path, prepend baseUrl, otherwise use as-is
+    let carImageUrl = fullCarDetails?.images?.[0] || `${baseUrl}/luxury-car-sleek-design.png`
+    if (carImageUrl && !carImageUrl.startsWith('http')) {
+      carImageUrl = `${baseUrl}${carImageUrl.startsWith('/') ? '' : '/'}${carImageUrl}`
+    }
 
     let emailContent = `
       <!DOCTYPE html>
@@ -61,19 +65,19 @@ export async function POST(request: NextRequest) {
           body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; 
             line-height: 1.6; 
-            color: #F2F0E6; 
-            background-color: #1A1A1A; 
+            color: #F2F0E6 !important; 
+            background-color: #1A1A1A !important; 
             margin: 0; 
             padding: 0; 
           }
           .container { 
             max-width: 650px; 
             margin: 0 auto; 
-            background-color: #1A1A1A; 
+            background-color: #1A1A1A !important; 
           }
           .header { 
-            background: linear-gradient(135deg, #D4AF37 0%, #C0A030 100%); 
-            color: #000; 
+            background: linear-gradient(135deg, #D4AF37 0%, #C0A030 100%) !important; 
+            color: #000 !important; 
             padding: 30px; 
             text-align: center; 
           }
@@ -81,10 +85,12 @@ export async function POST(request: NextRequest) {
             margin: 0; 
             font-size: 24px; 
             font-weight: bold; 
+            color: #000 !important; 
           }
           .content { 
-            background-color: #1A1A1A; 
+            background-color: #1A1A1A !important; 
             padding: 30px; 
+            color: #F2F0E6 !important; 
           }
           .car-listing { 
             background-color: #262626; 
@@ -112,13 +118,13 @@ export async function POST(request: NextRequest) {
           .car-title { 
             font-size: 24px; 
             font-weight: bold; 
-            color: #F2F0E6; 
+            color: #F2F0E6 !important; 
             margin: 0 0 16px 0; 
           }
           .car-price { 
             font-size: 32px; 
             font-weight: bold; 
-            color: #D4AF37; 
+            color: #D4AF37 !important; 
             margin: 16px 0; 
           }
           .car-specs { 
@@ -143,7 +149,7 @@ export async function POST(request: NextRequest) {
           .spec-value { 
             font-size: 16px; 
             font-weight: bold; 
-            color: #F2F0E6; 
+            color: #F2F0E6 !important; 
           }
           .customer-info { 
             background-color: #262626; 
@@ -169,7 +175,11 @@ export async function POST(request: NextRequest) {
             min-width: 80px; 
           }
           .info-value { 
-            color: #F2F0E6; 
+            color: #F2F0E6 !important; 
+          }
+          .info-value a { 
+            color: #D4AF37 !important; 
+            text-decoration: none; 
           }
           .message-box { 
             background-color: #262626; 
@@ -182,7 +192,7 @@ export async function POST(request: NextRequest) {
             color: #D4AF37; 
           }
           .message-box p { 
-            color: #F2F0E6; 
+            color: #F2F0E6 !important; 
             margin: 8px 0 0 0; 
           }
           .view-listing-btn { 
@@ -213,7 +223,7 @@ export async function POST(request: NextRequest) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>${type === "test-drive" ? "🚗 Test Drive Request" : "📧 New Enquiry"}</h1>
+            <h1>${type === "test-drive" ? "Test Drive Request" : "New Enquiry"}</h1>
           </div>
           <div class="content">
     `
@@ -234,17 +244,17 @@ export async function POST(request: NextRequest) {
       emailContent += `
             <div class="car-listing">
               <div class="car-image-container">
-                <img src="${carImageUrl}" alt="${carMake} ${carModel}" class="car-image" />
+                <img src="${carImageUrl}" alt="${carMake} ${carModel}" class="car-image" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
               </div>
               <div class="car-info">
-                <div class="car-title">${carYearValue} ${carMake} ${carModel}</div>
-                ${carPrice ? `<div class="car-price">${carPrice}</div>` : ""}
+                <div class="car-title" style="color: #F2F0E6 !important;">${carYearValue} ${carMake} ${carModel}</div>
+                ${carPrice ? `<div class="car-price" style="color: #D4AF37 !important;">${carPrice}</div>` : ""}
                 <div class="car-specs">
-                  ${carMileage ? `<div class="spec-item"><div class="spec-label">Mileage</div><div class="spec-value">${carMileage}</div></div>` : ""}
-                  ${carYearValue !== "N/A" ? `<div class="spec-item"><div class="spec-label">Year</div><div class="spec-value">${carYearValue}</div></div>` : ""}
-                  ${carFuel !== "N/A" ? `<div class="spec-item"><div class="spec-label">Fuel Type</div><div class="spec-value">${carFuel}</div></div>` : ""}
-                  ${carTransmission !== "N/A" ? `<div class="spec-item"><div class="spec-label">Transmission</div><div class="spec-value">${carTransmission}</div></div>` : ""}
-                  ${carBodyType !== "N/A" ? `<div class="spec-item"><div class="spec-label">Body Type</div><div class="spec-value">${carBodyType}</div></div>` : ""}
+                  ${carMileage ? `<div class="spec-item"><div class="spec-label">Mileage</div><div class="spec-value" style="color: #F2F0E6 !important;">${carMileage}</div></div>` : ""}
+                  ${carYearValue !== "N/A" ? `<div class="spec-item"><div class="spec-label">Year</div><div class="spec-value" style="color: #F2F0E6 !important;">${carYearValue}</div></div>` : ""}
+                  ${carFuel !== "N/A" ? `<div class="spec-item"><div class="spec-label">Fuel Type</div><div class="spec-value" style="color: #F2F0E6 !important;">${carFuel}</div></div>` : ""}
+                  ${carTransmission !== "N/A" ? `<div class="spec-item"><div class="spec-label">Transmission</div><div class="spec-value" style="color: #F2F0E6 !important;">${carTransmission}</div></div>` : ""}
+                  ${carBodyType !== "N/A" ? `<div class="spec-item"><div class="spec-label">Body Type</div><div class="spec-value" style="color: #F2F0E6 !important;">${carBodyType}</div></div>` : ""}
                 </div>
                 ${fullCarDetails?.id ? `<div style="text-align: center;"><a href="${baseUrl}/stock/${fullCarDetails.id}" class="view-listing-btn">View Full Listing</a></div>` : ""}
               </div>
@@ -256,9 +266,9 @@ export async function POST(request: NextRequest) {
     emailContent += `
             <div class="customer-info">
               <h2>Customer Information</h2>
-              <div class="info-row"><span class="info-label">Name:</span> <span class="info-value">${name}</span></div>
-              <div class="info-row"><span class="info-label">Email:</span> <span class="info-value"><a href="mailto:${email}" style="color: #D4AF37; text-decoration: none;">${email}</a></span></div>
-              <div class="info-row"><span class="info-label">Phone:</span> <span class="info-value"><a href="tel:${phone}" style="color: #D4AF37; text-decoration: none;">${phone}</a></span></div>
+              <div class="info-row"><span class="info-label">Name:</span> <span class="info-value" style="color: #F2F0E6 !important;">${name}</span></div>
+              <div class="info-row"><span class="info-label">Email:</span> <span class="info-value"><a href="mailto:${email}" style="color: #D4AF37 !important; text-decoration: none;">${email}</a></span></div>
+              <div class="info-row"><span class="info-label">Phone:</span> <span class="info-value"><a href="tel:${phone}" style="color: #D4AF37 !important; text-decoration: none;">${phone}</a></span></div>
             </div>
     `
 
@@ -266,8 +276,8 @@ export async function POST(request: NextRequest) {
     if (message) {
       emailContent += `
             <div class="message-box">
-              <strong>Message:</strong><br>
-              ${message.replace(/\n/g, "<br>")}
+              <strong style="color: #D4AF37 !important;">Message:</strong><br>
+              <p style="color: #F2F0E6 !important; margin: 8px 0 0 0;">${message.replace(/\n/g, "<br>")}</p>
             </div>
       `
     }
