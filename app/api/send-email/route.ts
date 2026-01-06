@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Send email
     const { data, error } = await resend.emails.send({
-      from: "Platinum Motorz <onboarding@resend.dev>", // Update this with your verified domain
+      from: "onboarding@resend.dev",
       to: ["paviliomotorsofficial@gmail.com"],
       subject: emailSubject,
       html: emailContent,
@@ -56,14 +56,21 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error("Resend error:", error)
-      return NextResponse.json({ error: "Failed to send email" }, { status: 500 })
+      console.error("Resend error:", JSON.stringify(error, null, 2))
+      return NextResponse.json(
+        { error: "Failed to send email", details: error.message || String(error) },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error("Email API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return NextResponse.json(
+      { error: "Internal server error", details: errorMessage },
+      { status: 500 }
+    )
   }
 }
 
