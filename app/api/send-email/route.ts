@@ -51,9 +51,16 @@ export async function POST(request: NextRequest) {
     // Images from Supabase Storage are already full URLs, use directly
     // If it's a relative path, prepend baseUrl, otherwise use as-is
     let carImageUrl = fullCarDetails?.images?.[0] || `${baseUrl}/luxury-car-sleek-design.png`
+    
+    // Handle image URL - could be Supabase Storage URL or relative path
     if (carImageUrl && !carImageUrl.startsWith('http')) {
+      // If it's a relative path, make it absolute
       carImageUrl = `${baseUrl}${carImageUrl.startsWith('/') ? '' : '/'}${carImageUrl}`
     }
+    
+    // Log for debugging
+    console.log("Car image URL:", carImageUrl)
+    console.log("Full car details images:", fullCarDetails?.images)
 
     let emailContent = `
       <!DOCTYPE html>
