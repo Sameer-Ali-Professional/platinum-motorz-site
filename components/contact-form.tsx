@@ -21,18 +21,27 @@ export function ContactForm() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("https://formspree.io/f/xanyrgko", {
+      const response = await fetch("/api/send-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+          subject: "Contact Form Enquiry",
+          type: "enquiry",
+        }),
       })
 
       if (response.ok) {
         setSubmitSuccess(true)
         setFormData({ name: "", email: "", phone: "", message: "" })
         setTimeout(() => setSubmitSuccess(false), 5000)
+      } else {
+        alert("There was an error sending your message. Please try again or contact us directly.")
       }
     } catch (error) {
       console.error("Form submission error:", error)

@@ -33,16 +33,12 @@ export function EnquiryPopup({ isOpen, onClose, type, carDetails }: EnquiryPopup
     setSubmitStatus("idle")
 
     try {
-      const formspreeEndpoint = "https://formspree.io/f/xanyqbqe"
-
       const subject =
         type === "test-drive"
           ? `Test Drive Request - ${carDetails?.make} ${carDetails?.model}`
           : `Enquiry - ${carDetails?.make} ${carDetails?.model}`
 
-      const fullMessage = `${formData.message}\n\nCar: ${carDetails?.year} ${carDetails?.make} ${carDetails?.model}`
-
-      const response = await fetch(formspreeEndpoint, {
+      const response = await fetch("/api/send-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -51,8 +47,16 @@ export function EnquiryPopup({ isOpen, onClose, type, carDetails }: EnquiryPopup
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          message: fullMessage,
-          _subject: subject,
+          message: formData.message,
+          subject,
+          type,
+          carDetails: carDetails
+            ? {
+                year: carDetails.year,
+                make: carDetails.make,
+                model: carDetails.model,
+              }
+            : null,
         }),
       })
 
