@@ -274,12 +274,18 @@ export async function POST(request: NextRequest) {
     `
 
     // Send email
+    // Note: Resend requires domain verification to send to non-account-owner emails
+    // For now, sending to verified email. To send directly to Outlook:
+    // 1. Verify domain at https://resend.com/domains
+    // 2. Change 'from' address to use your domain (e.g., noreply@platinummotorz.co.uk)
     const { data, error } = await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: ["platinummotorz1@outlook.com"],
+      to: ["sameeraliprofessional1@gmail.com"],
       subject: emailSubject,
       html: emailContent,
       replyTo: email,
+      // Add BCC to Outlook so they also receive it
+      bcc: ["platinummotorz1@outlook.com"],
     })
 
     if (error) {
