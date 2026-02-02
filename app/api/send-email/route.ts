@@ -1,21 +1,19 @@
-import sgMail from "@sendgrid/mail"
+import { Resend } from "resend"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 export async function POST(request: NextRequest) {
   try {
-    // Check if SendGrid API key is configured
-    const sendGridApiKey = process.env.SENDGRID_API_KEY
-    if (!sendGridApiKey) {
-      console.error("SENDGRID_API_KEY is not configured")
+    // Check if Resend API key is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not configured")
       return NextResponse.json(
-        { error: "Email service is not configured. Please set SENDGRID_API_KEY environment variable." },
+        { error: "Email service is not configured. Please set RESEND_API_KEY environment variable." },
         { status: 500 }
       )
     }
-
-    // Initialize SendGrid
-    sgMail.setApiKey(sendGridApiKey)
 
     const body = await request.json()
     const { name, email, phone, message, subject, type, carDetails, carId } = body
@@ -50,7 +48,6 @@ export async function POST(request: NextRequest) {
 
     // Build email content with car listing
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.platinummotorz.co.uk"
-    const recipientEmail = process.env.RECIPIENT_EMAIL || "platinummotorz1@outlook.com"
 
     let emailContent = `
       <!DOCTYPE html>
@@ -276,33 +273,31 @@ export async function POST(request: NextRequest) {
       </html>
     `
 
-    // Send email using SendGrid
-    const msg = {
+    // Send email using Resend
+    // Once domain is verified, change 'from' to use your domain (e.g., noreply@platinummotorz.co.uk)
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev"
+    const recipientEmail = process.env.RECIPIENT_EMAIL || "platinummotorz1@outlook.com"
+
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
       to: recipientEmail,
-      from: process.env.SENDGRID_FROM_EMAIL || "platinummotorz1@outlook.com", // This needs to be a verified sender in SendGrid
       subject: emailSubject,
       html: emailContent,
       replyTo: email,
+    })
+
+    if (error) {
+      console.error("Resend error:", JSON.stringify(error, null, 2))
+      return NextResponse.json(
+        { error: "Failed to send email", details: error.message || String(error) },
+        { status: 500 }
+      )
     }
 
-    await sgMail.send(msg)
-
-    console.log("Email sent successfully via SendGrid")
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error("Email API error:", error)
     const errorMessage = error instanceof Error ? error.message : String(error)
-    
-    // Log full error details for debugging
-    if (error instanceof Error && "response" in error) {
-      const sgError = error as any
-      console.error("SendGrid error details:", {
-        message: errorMessage,
-        statusCode: sgError.response?.statusCode,
-        body: sgError.response?.body,
-      })
-    }
-    
     return NextResponse.json(
       { error: "Internal server error", details: errorMessage },
       { status: 500 }
